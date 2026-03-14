@@ -310,39 +310,34 @@ jobs:
           codesign --force --sign - TridentTest.app/TridentTest
           codesign --force --sign - TridentTest.app
 
+      - name: Find iOS Simulator device
+        id: sim-device
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devs in data['devices'].items():
+              if 'iOS' in runtime:
+                  for d in devs:
+                      if 'iPhone' in d['name'] and d['isAvailable']:
+                          print(d['udid']); sys.exit(0)
+          sys.exit(1)")
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Found simulator: $DEVICE"
+
       - name: Run tests in iOS Simulator
         run: |
           mkdir -p test-results
-
-          # Boot simulator
-          DEVICE=$(xcrun simctl list devices available -j | \
-            python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for runtime, devs in data['devices'].items():
-    if 'iOS' in runtime:
-        for d in devs:
-            if 'iPhone' in d['name'] and d['isAvailable']:
-                print(d['udid'])
-                sys.exit(0)
-sys.exit(1)
-")
-
-          echo "Using simulator device: $DEVICE"
+          DEVICE="${{ steps.sim-device.outputs.device }}"
           xcrun simctl boot "$DEVICE" 2>/dev/null || true
           sleep 5
-
-          # Install and launch
           xcrun simctl install "$DEVICE" TridentTest.app
           xcrun simctl launch --console "$DEVICE" com.trident.test 2>&1 | tee test-results/ios-sim-output.txt
-
-          # Parse results
           if grep -q "FAILED:  0" test-results/ios-sim-output.txt; then
             echo "iOS Simulator tests passed"
           else
             echo "iOS Simulator tests had failures"
           fi
-
           xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
         continue-on-error: true
 
@@ -368,67 +363,58 @@ sys.exit(1)
         with:
           path: all-results
 
+      - name: Create summary script
+        run: |
+          cat > /tmp/summarize.py << 'PYEOF'
+          import json, glob, os, sys
+
+          summary_lines = []
+          summary_lines.append("## Cross-Platform Test Results\n")
+          summary_lines.append("| Platform | Functional | Performance | Status |")
+          summary_lines.append("|----------|-----------|-------------|--------|")
+
+          for d in sorted(glob.glob("all-results/test-results-*/")):
+              platform = os.path.basename(d.rstrip("/")).replace("test-results-", "")
+
+              func_summary = "N/A"
+              func_files = glob.glob(os.path.join(d, "functional-*.json"))
+              if func_files:
+                  try:
+                      data = json.load(open(func_files[0]))
+                      s = data.get("summary", {})
+                      func_summary = f"{s.get('passed',0)}P/{s.get('failed',0)}F/{s.get('skipped',0)}S"
+                  except Exception:
+                      func_summary = "parse error"
+
+              perf_summary = "N/A"
+              perf_files = glob.glob(os.path.join(d, "perf-*.json"))
+              if perf_files:
+                  try:
+                      data = json.load(open(perf_files[0]))
+                      bs = data.get("benchmarks", [])
+                      if bs:
+                          perf_summary = f"{bs[0].get('avg_fps', 'N/A')} FPS"
+                  except Exception:
+                      perf_summary = "parse error"
+
+              ios_files = glob.glob(os.path.join(d, "ios-sim-output.txt"))
+              if ios_files and func_summary == "N/A":
+                  content = open(ios_files[0]).read()
+                  if "FAILED:  0" in content:
+                      func_summary = "all passed"
+                  else:
+                      fails = content.count("\nFAIL:")
+                      func_summary = f"{fails} failures"
+
+              status = "pass" if ("0F" in func_summary or func_summary in ("all passed", "N/A")) else "fail"
+              summary_lines.append(f"| {platform} | {func_summary} | {perf_summary} | {status} |")
+
+          print("\n".join(summary_lines))
+          PYEOF
+
       - name: Generate summary
         run: |
-          echo "## Cross-Platform Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Platform | Functional | Performance | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-----------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          for dir in all-results/test-results-*/; do
-            platform=$(basename "$dir" | sed 's/test-results-//')
-
-            # Functional results
-            func_file=$(find "$dir" -name "functional-*.json" 2>/dev/null | head -1)
-            if [ -f "$func_file" ]; then
-              func_summary=$(python3 -c "
-import json
-d = json.load(open('$func_file'))
-s = d.get('summary', {})
-print(f\"{s.get('passed',0)}P/{s.get('failed',0)}F/{s.get('skipped',0)}S\")
-" 2>/dev/null || echo "parse error")
-            else
-              func_summary="N/A"
-            fi
-
-            # Perf results
-            perf_file=$(find "$dir" -name "perf-*.json" 2>/dev/null | head -1)
-            if [ -f "$perf_file" ]; then
-              perf_summary=$(python3 -c "
-import json
-d = json.load(open('$perf_file'))
-bs = d.get('benchmarks', [])
-if bs:
-    fps = bs[0].get('avg_fps', 'N/A')
-    print(f'{fps} FPS')
-else:
-    print('no data')
-" 2>/dev/null || echo "parse error")
-            else
-              perf_summary="N/A"
-            fi
-
-            # iOS raw output
-            ios_file=$(find "$dir" -name "ios-sim-output.txt" 2>/dev/null | head -1)
-            if [ -f "$ios_file" ] && [ "$func_file" = "" ]; then
-              if grep -q "FAILED:  0" "$ios_file"; then
-                func_summary="all passed"
-              else
-                func_summary=$(grep "^FAIL:" "$ios_file" | wc -l)
-                func_summary="${func_summary} failures"
-              fi
-            fi
-
-            # Status emoji
-            if echo "$func_summary" | grep -qE "0F|all passed|N/A"; then
-              status="pass"
-            else
-              status="fail"
-            fi
-
-            echo "| $platform | $func_summary | $perf_summary | $status |" >> $GITHUB_STEP_SUMMARY
-          done
-
+          python3 /tmp/summarize.py >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "*Generated at $(date -u +%Y-%m-%dT%H:%M:%SZ)*" >> $GITHUB_STEP_SUMMARY

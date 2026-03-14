@@ -89,6 +89,14 @@ android-arm64-v8a:
 
 # iOS ARM64
 libretro-build-ios-arm64:
+  variables:
+    CORE_ARGS: >-
+      -DBUILD_LIBRETRO_CORE=ON -DUSE_LIBRETRO_AUDIO=ON -DENABLE_USER_BUILD=ON
+      -DENABLE_VULKAN=OFF -DENABLE_LUAJIT=OFF -DENABLE_DISCORD_RPC=OFF
+      -DENABLE_QT_GUI=OFF -DENABLE_HTTP_SERVER=OFF -DENABLE_TESTS=OFF
+      -DENABLE_METAL=ON -DENABLE_OPENGL=OFF -DIOS_SIMULATOR_BUILD=OFF
+      -DCMAKE_C_FLAGS="-march=armv8-a+crc+crypto"
+      -DCMAKE_CXX_FLAGS="-march=armv8-a+crc+crypto"
   extends:
     - .libretro-ios-cmake-arm64
     - .core-defs

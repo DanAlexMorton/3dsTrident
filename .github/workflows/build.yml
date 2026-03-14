@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-windows-x64
-          path: build/Release/trident_libretro.dll
+          path: build/**/trident_libretro.dll
 
   build-linux:
     runs-on: ubuntu-latest
@@ -68,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-linux-x64
-          path: build/trident_libretro.so
+          path: build/**/trident_libretro.so
 
   build-macos-arm64:
     runs-on: macos-latest
@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-macos-arm64
-          path: build/trident_libretro.dylib
+          path: build/**/trident_libretro.dylib
 
   build-macos-x64:
     runs-on: macos-latest
@@ -120,7 +120,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-macos-x64
-          path: build/trident_libretro.dylib
+          path: build/**/trident_libretro.dylib
 
   build-android:
     runs-on: ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-android-arm64
-          path: build/trident_libretro.so
+          path: build/**/trident_libretro.so
 
   build-ios:
     runs-on: macos-latest
@@ -197,7 +197,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trident_libretro-ios-arm64
-          path: build/trident_libretro.dylib
+          path: build/**/trident_libretro.dylib
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -211,15 +211,32 @@ jobs:
         with:
           path: artifacts
 
+      - name: List downloaded artifacts
+        run: find artifacts -type f | sort
+
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp artifacts/trident_libretro-windows-x64/trident_libretro.dll release/trident_libretro_windows_x64.dll
-          cp artifacts/trident_libretro-linux-x64/trident_libretro.so release/trident_libretro_linux_x64.so
-          cp artifacts/trident_libretro-macos-arm64/trident_libretro.dylib release/trident_libretro_macos_arm64.dylib
-          cp artifacts/trident_libretro-macos-x64/trident_libretro.dylib release/trident_libretro_macos_x64.dylib
-          cp artifacts/trident_libretro-android-arm64/trident_libretro.so release/trident_libretro_android_arm64.so
-          cp artifacts/trident_libretro-ios-arm64/trident_libretro.dylib release/trident_libretro_ios_arm64.dylib
+          copy_artifact() {
+            local artifact_name="$1"
+            local release_name="$2"
+            local src
+            src=$(find "artifacts/${artifact_name}" -name "trident_libretro*" -type f 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              cp "$src" "release/${release_name}"
+              echo "OK: ${release_name} <- ${src}"
+            else
+              echo "WARN: No file found in artifacts/${artifact_name}"
+            fi
+          }
+          copy_artifact trident_libretro-windows-x64  trident_libretro_windows_x64.dll
+          copy_artifact trident_libretro-linux-x64    trident_libretro_linux_x64.so
+          copy_artifact trident_libretro-macos-arm64  trident_libretro_macos_arm64.dylib
+          copy_artifact trident_libretro-macos-x64    trident_libretro_macos_x64.dylib
+          copy_artifact trident_libretro-android-arm64 trident_libretro_android_arm64.so
+          copy_artifact trident_libretro-ios-arm64    trident_libretro_ios_arm64.dylib
+          echo "=== Release files ==="
+          ls -la release/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

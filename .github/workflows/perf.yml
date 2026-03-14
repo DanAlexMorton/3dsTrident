@@ -141,27 +141,19 @@ jobs:
         run: |
           echo "## Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          for f in perf-artifacts/perf-results-*//*.json; do
+          for f in perf-artifacts/perf-results-*/*.json; do
             if [ -f "$f" ]; then
               platform=$(python3 -c "import json; d=json.load(open('$f')); print(d.get('platform','unknown'))")
               echo "### $platform" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
-              python3 -c "
-import json
-d = json.load(open('$f'))
-for b in d.get('benchmarks', []):
-    fps = b.get('avg_fps', 'N/A')
-    p99 = b.get('p99_frame_time_ms', 'N/A')
-    src = b.get('source', '?')
-    print(f\"  {b['rom']}: avg_fps={fps}, p99={p99}ms ({src})\")
-" >> $GITHUB_STEP_SUMMARY
+              python3 -c "import json; d=json.load(open('$f')); [print(f'  {b[\"rom\"]}: avg_fps={b.get(\"avg_fps\",\"N/A\")}, p99={b.get(\"p99_frame_time_ms\",\"N/A\")}ms ({b.get(\"source\",\"?\")})') for b in d.get('benchmarks',[])]" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           done
 
           # Check for regressions
-          for f in perf-artifacts/perf-results-*//*regressions*; do
+          for f in perf-artifacts/perf-results-*/*regressions*; do
             if [ -f "$f" ]; then
               echo "### Regressions" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY

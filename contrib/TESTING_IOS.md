@@ -10,7 +10,8 @@ Renderer: **OpenGL ES 3.0** (via RetroArch's GL video driver)
 ## Prerequisites
 
 - iOS device with A11 chip or newer (iPhone 8+, iPad 6th gen+)
-- RetroArch sideloaded via AltStore, TrollStore, or developer account
+- A Mac with Xcode installed (required to build and sign the app)
+- RetroArch built from source with the Trident core included in the app bundle, then deployed via Xcode, AltStore, TrollStore, or a developer account (iOS does not allow loading `.dylib` files at runtime -- the core must be compiled into the RetroArch binary)
 - At least one known-good 3DS ROM for testing
 - Enough free storage (~500 MB for RetroArch + core + test ROMs)
 

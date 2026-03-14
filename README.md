@@ -41,16 +41,36 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
 
 ### iOS
 
-1. Install [RetroArch from the App Store](https://apps.apple.com/app/retroarch/id6499539433)
-2. Download `trident_libretro_ios_arm64.dylib` from [Releases](https://github.com/DanAlexMorton/3dsTrident/releases)
-3. Transfer the `.dylib` to RetroArch's cores directory on your device:
-   - **Via Files app**: Navigate to the RetroArch folder > `cores/`
-   - **Via Finder (macOS)**: Connect your device, select it in Finder, go to the Files tab, drag the file into RetroArch's documents, then move it to `cores/` from within RetroArch's file browser
-4. Copy `trident_libretro.info` to RetroArch's `info/` directory
-5. Launch RetroArch > Load Core > Trident > Load a 3DS ROM
-6. Requires an A11 chip or newer (iPhone 8+, iPad 6th gen+)
-> **Note**: iOS does not allow JIT compilation on non-jailbroken devices. This may
-> affect CPU emulation performance. Shader JIT and fastmem may also be restricted.
+> **Important**: iOS does not allow loading `.dylib` files at runtime. You cannot
+> simply drop a core file into a folder like on desktop platforms. The Trident core
+> must be built into RetroArch's app bundle and code-signed together.
+
+**Option A -- Build RetroArch with Trident from source (recommended):**
+
+1. Clone RetroArch and Trident on a Mac with Xcode installed:
+   ```bash
+   git clone --recursive https://github.com/libretro/RetroArch.git
+   git clone --recursive https://github.com/DanAlexMorton/3dsTrident.git
+   ```
+2. Build the Trident core for iOS (see [Building from Source > iOS](#ios-1) below)
+3. Copy the built `trident_libretro.dylib` into the RetroArch Xcode project's core bundle
+4. Build and sign RetroArch with Xcode, deploying to your device
+5. The core will appear in Load Core > Trident
+
+**Option B -- Sideload via AltStore / Sideloadly:**
+
+1. Build RetroArch with Trident included (same as Option A steps 1-3)
+2. Export a signed `.ipa` from Xcode
+3. Install via [AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)
+
+> AltStore-signed apps must be refreshed every 7 days unless you have a paid
+> Apple Developer account ($99/year).
+
+**Requirements:**
+- A Mac with Xcode (for building)
+- An A11 chip or newer (iPhone 8+, iPad 6th gen+)
+- iOS does not allow JIT compilation on non-jailbroken devices, which may
+  affect CPU emulation performance
 
 ## Supported Formats
 

@@ -10,10 +10,20 @@ Renderer: **OpenGL ES 3.0** (via RetroArch's GL video driver)
 ## Prerequisites
 
 - iOS device with A11 chip or newer (iPhone 8+, iPad 6th gen+)
-- A Mac with Xcode installed (required to build and sign the app)
-- RetroArch built from source with the Trident core included in the app bundle, then deployed via Xcode, AltStore, TrollStore, or a developer account (iOS does not allow loading `.dylib` files at runtime -- the core must be compiled into the RetroArch binary)
+- The pre-built RetroArch+Trident IPA from GitHub Actions (see below), **or** a Mac with Xcode to build from source
 - At least one known-good 3DS ROM for testing
 - Enough free storage (~500 MB for RetroArch + core + test ROMs)
+
+### Getting the IPA (no Mac required)
+
+1. Go to [Actions > Build RetroArch + Trident IPA](https://github.com/DanAlexMorton/3dsTrident/actions/workflows/ios-retroarch.yml) and run the workflow
+2. Download the `RetroArch-Trident-iOS` artifact (contains the `.ipa`)
+3. Install [Sideloadly](https://sideloadly.io/) on your Windows or Mac PC
+4. On Windows: also install [iTunes](https://www.apple.com/itunes/) (the non-Microsoft Store version)
+5. Connect your iPhone via USB, open Sideloadly, drag the `.ipa` in, enter your Apple ID
+6. On the iPhone: Settings > General > VPN & Device Management > trust the developer profile
+
+> Free Apple IDs require re-signing every 7 days. A paid Developer account ($99/year) extends this to 1 year.
 
 ---
 

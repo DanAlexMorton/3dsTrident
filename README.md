@@ -45,7 +45,18 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
 > simply drop a core file into a folder like on desktop platforms. The Trident core
 > must be built into RetroArch's app bundle and code-signed together.
 
-**Option A -- Build RetroArch with Trident from source (recommended):**
+**Option A -- Download pre-built IPA and sideload (no Mac required):**
+
+1. Go to [Actions > Build RetroArch + Trident IPA](https://github.com/DanAlexMorton/3dsTrident/actions/workflows/ios-retroarch.yml), click "Run workflow", then download the `RetroArch-Trident-iOS` artifact once the build completes
+2. Install [Sideloadly](https://sideloadly.io/) on your Windows or Mac PC, plus [iTunes](https://www.apple.com/itunes/) (non-Microsoft Store version on Windows)
+3. Connect your iPhone via USB, open Sideloadly, drag the `.ipa` file in, and enter your Apple ID
+4. On your iPhone: Settings > General > VPN & Device Management > trust the developer profile
+5. Open RetroArch > Load Core > Trident > load a 3DS ROM
+
+> With a free Apple ID, the app expires every 7 days and must be re-signed via
+> Sideloadly. A paid Apple Developer account ($99/year) extends this to 1 year.
+
+**Option B -- Build RetroArch with Trident from source (requires Mac):**
 
 1. Clone RetroArch and Trident on a Mac with Xcode installed:
    ```bash
@@ -53,21 +64,11 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
    git clone --recursive https://github.com/DanAlexMorton/3dsTrident.git
    ```
 2. Build the Trident core for iOS (see [Building from Source > iOS](#ios-1) below)
-3. Copy the built `trident_libretro.dylib` into the RetroArch Xcode project's core bundle
-4. Build and sign RetroArch with Xcode, deploying to your device
-5. The core will appear in Load Core > Trident
-
-**Option B -- Sideload via AltStore / Sideloadly:**
-
-1. Build RetroArch with Trident included (same as Option A steps 1-3)
-2. Export a signed `.ipa` from Xcode
-3. Install via [AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)
-
-> AltStore-signed apps must be refreshed every 7 days unless you have a paid
-> Apple Developer account ($99/year).
+3. Copy `trident_libretro.dylib` into `RetroArch/pkg/apple/iOS/modules/`
+4. Open `RetroArch/pkg/apple/RetroArch_iOS13.xcodeproj` in Xcode
+5. Build and deploy to your device
 
 **Requirements:**
-- A Mac with Xcode (for building)
 - An A11 chip or newer (iPhone 8+, iPad 6th gen+)
 - iOS does not allow JIT compilation on non-jailbroken devices, which may
   affect CPU emulation performance

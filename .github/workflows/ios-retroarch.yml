@@ -1,0 +1,139 @@
+name: Build RetroArch + Trident IPA (iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      retroarch_ref:
+        description: 'RetroArch git ref (branch/tag/commit)'
+        required: false
+        default: 'master'
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Trident
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: trident
+
+      - name: Clone RetroArch
+        run: |
+          git clone --depth 1 --branch ${{ github.event.inputs.retroarch_ref || 'master' }} \
+            https://github.com/libretro/RetroArch.git retroarch
+
+      - name: Build Trident core for iOS
+        run: |
+          cd trident
+          cmake -B build-ios -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DIOS_SIMULATOR_BUILD=OFF \
+            -DCMAKE_C_FLAGS="-march=armv8-a+crc+crypto" \
+            -DCMAKE_CXX_FLAGS="-march=armv8-a+crc+crypto" \
+            -DBUILD_LIBRETRO_CORE=ON \
+            -DUSE_LIBRETRO_AUDIO=ON \
+            -DENABLE_USER_BUILD=ON \
+            -DENABLE_VULKAN=OFF \
+            -DENABLE_LUAJIT=OFF \
+            -DENABLE_DISCORD_RPC=OFF \
+            -DENABLE_QT_GUI=OFF \
+            -DENABLE_OPENGL=ON \
+            -DOPENGL_PROFILE=OpenGLES \
+            -DENABLE_METAL=OFF \
+            -DENABLE_HTTP_SERVER=OFF \
+            -DENABLE_TESTS=OFF
+          cmake --build build-ios --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
+
+      - name: Verify core built
+        run: |
+          echo "=== Trident core ==="
+          find trident/build-ios -name "trident_libretro*" -type f
+          file trident/build-ios/trident_libretro.dylib || \
+            file $(find trident/build-ios -name "trident_libretro.dylib" -type f | head -1)
+
+      - name: Copy core into RetroArch modules
+        run: |
+          mkdir -p retroarch/pkg/apple/iOS/modules
+          CORE=$(find trident/build-ios -name "trident_libretro.dylib" -type f | head -1)
+          if [ -z "$CORE" ]; then
+            echo "ERROR: trident_libretro.dylib not found"
+            exit 1
+          fi
+          cp "$CORE" retroarch/pkg/apple/iOS/modules/trident_libretro.dylib
+          echo "Copied: $CORE -> retroarch/pkg/apple/iOS/modules/trident_libretro.dylib"
+          ls -la retroarch/pkg/apple/iOS/modules/
+
+      - name: List available Xcode schemes
+        working-directory: retroarch
+        run: xcodebuild -project pkg/apple/RetroArch_iOS13.xcodeproj -list 2>/dev/null || true
+
+      - name: Build RetroArch for iOS (unsigned)
+        working-directory: retroarch
+        run: |
+          xcodebuild \
+            -project pkg/apple/RetroArch_iOS13.xcodeproj \
+            -scheme "RetroArch iOS Release" \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build \
+            SYMROOT="$(pwd)/build-output"
+        continue-on-error: true
+
+      - name: Find built app
+        run: |
+          echo "=== Build output ==="
+          find retroarch/build-output -name "*.app" -type d 2>/dev/null || true
+          find retroarch/pkg/apple/build -name "*.app" -type d 2>/dev/null || true
+          find retroarch -path "*/Release-iphoneos/*.app" -type d 2>/dev/null || true
+
+      - name: Verify modules in app bundle
+        run: |
+          APP=$(find retroarch -name "RetroArch.app" -type d 2>/dev/null | head -1)
+          if [ -n "$APP" ]; then
+            echo "=== App bundle: $APP ==="
+            ls -la "$APP/modules/" 2>/dev/null || echo "No modules dir in app"
+            echo "=== All dylibs in app ==="
+            find "$APP" -name "*.dylib" -type f 2>/dev/null || echo "No dylibs found"
+          else
+            echo "WARN: RetroArch.app not found"
+          fi
+
+      - name: Package IPA
+        run: |
+          APP=$(find retroarch -name "RetroArch.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: RetroArch.app not found, cannot package IPA"
+            echo "Listing all build artifacts:"
+            find retroarch/build-output -type f 2>/dev/null | head -50
+            exit 1
+          fi
+
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          ditto -c -k --sequesterRsrc Payload RetroArch-Trident.ipa
+          echo "=== IPA created ==="
+          ls -lh RetroArch-Trident.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RetroArch-Trident-iOS
+          path: RetroArch-Trident.ipa
+          if-no-files-found: warn
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs
+          path: |
+            retroarch/build-output/
+          if-no-files-found: ignore

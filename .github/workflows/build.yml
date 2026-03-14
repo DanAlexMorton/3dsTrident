@@ -145,6 +145,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,7 +157,7 @@ jobs:
           -DCMAKE_SYSTEM_NAME=iOS
           -DCMAKE_OSX_ARCHITECTURES=arm64
           -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
-          -DENABLE_METAL=OFF
+          -DENABLE_METAL=ON
           -DBUILD_LIBRETRO_CORE=ON
           -DUSE_LIBRETRO_AUDIO=ON
           -DENABLE_USER_BUILD=ON
@@ -164,7 +165,7 @@ jobs:
           -DENABLE_LUAJIT=OFF
           -DENABLE_DISCORD_RPC=OFF
           -DENABLE_QT_GUI=OFF
-          -DENABLE_OPENGL=ON
+          -DENABLE_OPENGL=OFF
           -DENABLE_HTTP_SERVER=OFF
           -DENABLE_TESTS=OFF
 

@@ -30,12 +30,17 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libgl-dev libx11-dev \
             libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-            libwayland-dev libxkbcommon-dev xvfb mesa-utils python3 python3-pip
+            libwayland-dev libxkbcommon-dev xvfb mesa-utils
 
       - name: Build core
         run: |
@@ -45,10 +50,11 @@ jobs:
           cmake --build build --config Release --target panda3ds_libretro -j$(nproc)
 
       - name: Install test dependencies
-        run: pip3 install -r tests/functional/requirements.txt
+        run: pip install -r tests/functional/requirements.txt
 
       - name: Run functional tests
         run: |
+          mkdir -p test-results
           TRIDENT_CORE_PATH=build/trident_libretro.so \
             pytest tests/functional/ -v --tb=short --junitxml=test-results/functional-linux.xml
         continue-on-error: true
@@ -162,6 +168,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Build core
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
@@ -171,7 +182,7 @@ jobs:
           cmake --build build --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
 
       - name: Install test dependencies
-        run: pip3 install -r tests/functional/requirements.txt
+        run: pip install -r tests/functional/requirements.txt
 
       - name: Run functional tests
         run: |
@@ -220,13 +231,6 @@ jobs:
           echo "=== Android core ==="
           find build -name "trident_libretro*" -type f
           file build/trident_libretro.so || true
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-android
-          path: test-results/
 
   # ──────────────────────────────────────────────
   # iOS: Build verification (no runtime tests)

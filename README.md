@@ -68,7 +68,7 @@ Output: `build/trident_libretro.dylib`
 | macOS ARM64 | Supported |
 | macOS x64 | Supported |
 | Android ARM64 | Experimental |
-| iOS ARM64 | Planned (requires Metal shader pipeline fix) |
+| iOS ARM64 | Experimental |
 
 Requires OpenGL 4.1+ (desktop) or OpenGL ES 3.2 (mobile).
 

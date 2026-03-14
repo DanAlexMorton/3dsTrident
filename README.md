@@ -65,10 +65,12 @@ Output: `build/trident_libretro.dylib`
 |----------|--------|
 | Windows x64 | Supported |
 | Linux x64 | Supported |
-| macOS x64 / ARM64 | Supported |
+| macOS ARM64 | Supported |
+| macOS x64 | Supported |
 | Android ARM64 | Experimental |
+| iOS ARM64 | Experimental |
 
-Requires OpenGL 4.1+ (or OpenGL ES 3.2 on mobile).
+Requires OpenGL 4.1+ (desktop) or OpenGL ES 3.2 (mobile).
 
 ## License
 

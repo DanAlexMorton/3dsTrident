@@ -269,6 +269,64 @@ Document:
 
 ---
 
+## 9. Automated Performance Testing
+
+An automated benchmark system is available in `tests/perf/`. It uses RetroArch's
+CLI to run homebrew test ROMs through the Trident core and capture frame timing.
+
+### Quick Start
+
+```bash
+# Build test ROMs (requires Docker or devkitARM)
+./tests/perf/roms/build_roms.sh
+
+# Run benchmarks locally
+python tests/perf/perf_bench.py \
+    --core build/trident_libretro.so \
+    --retroarch retroarch \
+    --local
+
+# Save results as a new baseline
+python tests/perf/perf_bench.py \
+    --core build/trident_libretro.so \
+    --retroarch retroarch \
+    --update-baseline
+```
+
+### CI Integration
+
+The GitHub Actions workflow `.github/workflows/perf.yml` runs benchmarks
+automatically on every push to `main` and on pull requests. It:
+
+1. Builds the core and test ROMs
+2. Runs benchmarks on Linux and Windows CI runners
+3. Compares against stored baselines in `tests/perf/baselines/`
+4. Reports regressions (>15% avg FPS drop or >20% P99 frame time increase)
+5. Posts a summary to the GitHub Actions step summary
+
+Results are uploaded as workflow artifacts for each run.
+
+### File Structure
+
+```
+tests/perf/
+  perf_bench.py          # Benchmark runner script
+  roms/                  # Test ROMs (compiled from vendor/Panda3DS/tests/)
+    build_roms.sh        # Build script for test ROMs
+  baselines/             # Known-good performance baselines per platform
+  results/               # Local results (gitignored)
+```
+
+### Output Format
+
+Results are stored as JSON with per-ROM metrics:
+- `avg_fps` -- Average frames per second
+- `min_fps` -- Minimum observed FPS
+- `p99_frame_time_ms` -- 99th percentile frame time
+- `std_dev_ms` -- Standard deviation of frame times
+
+---
+
 ## Sign-Off
 
 | Evaluator | Date | Platforms Tested | Summary |

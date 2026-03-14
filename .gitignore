@@ -16,6 +16,12 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# Performance test results (local only)
+tests/perf/results/*.json
+
+# Built test ROMs (compiled from source in CI)
+tests/perf/roms/*.3dsx
+
 # Compiled objects
 *.obj
 *.o

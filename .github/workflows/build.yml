@@ -88,7 +88,7 @@ jobs:
           path: build/trident_libretro.dylib
 
   build-macos-x64:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:

@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
+# Python test dependencies (libretro.py + pytest)
+RUN pip3 install libretro.py pytest
+
 # RetroArch from PPA
 RUN add-apt-repository -y ppa:libretro/stable \
     && apt-get update \

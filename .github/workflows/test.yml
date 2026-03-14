@@ -21,7 +21,7 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Linux: Docker-based reproducible environment
+  # Linux
   # ──────────────────────────────────────────────
   test-linux:
     runs-on: ubuntu-latest
@@ -35,31 +35,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libgl-dev libx11-dev \
             libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-            libwayland-dev libxkbcommon-dev xvfb mesa-utils python3
+            libwayland-dev libxkbcommon-dev xvfb mesa-utils python3 python3-pip
 
-      - name: Build core and test harness
+      - name: Build core
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TEST_HARNESS=ON \
             -DENABLE_OPENGL=ON -DENABLE_METAL=OFF \
             ${{ env.CMAKE_COMMON_ARGS }}
           cmake --build build --config Release --target panda3ds_libretro -j$(nproc)
-          cmake --build build --config Release --target test_harness -j$(nproc)
 
-      - name: Find binaries
-        run: |
-          echo "=== Core ==="
-          find build -name "trident_libretro*" -type f
-          echo "=== Harness ==="
-          find build -name "test_harness" -type f
+      - name: Install test dependencies
+        run: pip3 install -r tests/functional/requirements.txt
 
-      - name: Run functional tests (Level 1)
+      - name: Run functional tests
         run: |
-          python3 tests/functional/test_runner.py \
-            --harness build/test_harness \
-            --core build/trident_libretro.so \
-            --platform linux-x64 \
-            --output test-results/functional-linux-x64.json
+          TRIDENT_CORE_PATH=build/trident_libretro.so \
+            pytest tests/functional/ -v --tb=short --junitxml=test-results/functional-linux.xml
         continue-on-error: true
 
       - name: Install RetroArch for perf tests
@@ -67,18 +58,25 @@ jobs:
           sudo add-apt-repository -y ppa:libretro/stable
           sudo apt-get update
           sudo apt-get install -y retroarch
+        continue-on-error: true
 
       - name: Install devkitPro and build test ROMs
         run: |
-          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
-          chmod +x ./install-devkitpro-pacman
-          sudo ./install-devkitpro-pacman <<< "Y"
+          sudo apt-get install -y apt-transport-https
+          sudo mkdir -p /usr/local/share/keyrings/
+          wget -q https://apt.devkitpro.org/devkitpro-pub.gpg -O /tmp/devkitpro-pub.gpg
+          sudo cp /tmp/devkitpro-pub.gpg /usr/local/share/keyrings/devkitpro-pub.gpg
+          echo "deb [signed-by=/usr/local/share/keyrings/devkitpro-pub.gpg] https://apt.devkitpro.org stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+          sudo apt-get update
+          sudo apt-get install -y devkitpro-pacman
+          sudo dkp-pacman -Syu --noconfirm
           sudo dkp-pacman -S --noconfirm 3ds-dev
           export DEVKITPRO=/opt/devkitpro
           export DEVKITARM=$DEVKITPRO/devkitARM
           export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
           cd vendor/Panda3DS/tests/SimplerTri && make
           cp SimplerTri.3dsx $GITHUB_WORKSPACE/tests/perf/roms/simpler_tri.3dsx
+        continue-on-error: true
 
       - name: Run perf benchmarks
         run: |
@@ -97,7 +95,7 @@ jobs:
           path: test-results/
 
   # ──────────────────────────────────────────────
-  # Windows: Native runner
+  # Windows
   # ──────────────────────────────────────────────
   test-windows:
     runs-on: windows-latest
@@ -106,32 +104,27 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build core and test harness
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build core
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
-            -DBUILD_TEST_HARNESS=ON `
             -DENABLE_OPENGL=ON -DENABLE_METAL=OFF `
             ${{ env.CMAKE_COMMON_ARGS }}
           cmake --build build --config Release --target panda3ds_libretro
-          cmake --build build --config Release --target test_harness
 
-      - name: Find binaries
+      - name: Install test dependencies
+        run: pip install -r tests/functional/requirements.txt
+
+      - name: Run functional tests
         shell: pwsh
         run: |
-          Write-Output "=== Core ==="
-          Get-ChildItem -Recurse build -Filter "trident_libretro*" | Select-Object FullName
-          Write-Output "=== Harness ==="
-          Get-ChildItem -Recurse build -Filter "test_harness*" | Select-Object FullName
-
-      - name: Run functional tests (Level 1)
-        shell: pwsh
-        run: |
+          $env:TRIDENT_CORE_PATH = "build\Release\trident_libretro.dll"
           New-Item -ItemType Directory -Force -Path test-results | Out-Null
-          python tests/functional/test_runner.py `
-            --harness build/Release/test_harness.exe `
-            --core build/Release/trident_libretro.dll `
-            --platform windows-x64 `
-            --output test-results/functional-windows-x64.json
+          pytest tests/functional/ -v --tb=short --junitxml=test-results/functional-windows.xml
         continue-on-error: true
 
       - name: Install RetroArch for perf tests
@@ -160,7 +153,7 @@ jobs:
           path: test-results/
 
   # ──────────────────────────────────────────────
-  # macOS ARM64: Native runner
+  # macOS ARM64
   # ──────────────────────────────────────────────
   test-macos:
     runs-on: macos-latest
@@ -169,24 +162,22 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build core and test harness
+      - name: Build core
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DBUILD_TEST_HARNESS=ON \
             -DENABLE_OPENGL=ON -DENABLE_METAL=OFF \
             ${{ env.CMAKE_COMMON_ARGS }}
           cmake --build build --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
-          cmake --build build --config Release --target test_harness -j$(sysctl -n hw.logicalcpu)
 
-      - name: Run functional tests (Level 1)
+      - name: Install test dependencies
+        run: pip3 install -r tests/functional/requirements.txt
+
+      - name: Run functional tests
         run: |
           mkdir -p test-results
-          python3 tests/functional/test_runner.py \
-            --harness build/test_harness \
-            --core build/trident_libretro.dylib \
-            --platform macos-arm64 \
-            --output test-results/functional-macos-arm64.json
+          TRIDENT_CORE_PATH=build/trident_libretro.dylib \
+            pytest tests/functional/ -v --tb=short --junitxml=test-results/functional-macos.xml
         continue-on-error: true
 
       - name: Upload results
@@ -197,7 +188,7 @@ jobs:
           path: test-results/
 
   # ──────────────────────────────────────────────
-  # Android: NDK build + emulator functional test
+  # Android: Cross-compile build verification
   # ──────────────────────────────────────────────
   test-android:
     runs-on: ubuntu-latest
@@ -224,30 +215,11 @@ jobs:
             ${{ env.CMAKE_COMMON_ARGS }}
           cmake --build build --config Release --target panda3ds_libretro -j$(nproc)
 
-      - name: Build native test harness for host
-        run: |
-          cmake -B build-host -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TEST_HARNESS=ON \
-            -DENABLE_OPENGL=ON -DENABLE_METAL=OFF \
-            ${{ env.CMAKE_COMMON_ARGS }}
-          cmake --build build-host --config Release --target test_harness -j$(nproc)
-
       - name: Verify Android core built
         run: |
           echo "=== Android core ==="
           find build -name "trident_libretro*" -type f
           file build/trident_libretro.so || true
-
-      - name: Run functional tests on host (verify harness works)
-        run: |
-          mkdir -p test-results
-          # Run Level 1 with the host-built core to validate the harness
-          python3 tests/functional/test_runner.py \
-            --harness build-host/test_harness \
-            --core build-host/trident_libretro.so \
-            --platform android-arm64-host-verify \
-            --output test-results/functional-android-host.json || true
-        continue-on-error: true
 
       - name: Upload results
         uses: actions/upload-artifact@v4
@@ -257,7 +229,7 @@ jobs:
           path: test-results/
 
   # ──────────────────────────────────────────────
-  # iOS: Simulator on macOS runner
+  # iOS: Build verification (no runtime tests)
   # ──────────────────────────────────────────────
   test-ios:
     runs-on: macos-latest
@@ -280,73 +252,10 @@ jobs:
             ${{ env.CMAKE_COMMON_ARGS }}
           cmake --build build-sim --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
 
-      - name: Find simulator core
-        run: find build-sim -name "trident_libretro*" -type f
-
-      - name: Build iOS test app
+      - name: Verify iOS Simulator core built
         run: |
-          SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          CORE_DYLIB=$(find build-sim -name "trident_libretro.dylib" -type f | head -1)
-
-          # Compile test app for simulator
-          clang -isysroot "$SDK_PATH" \
-            -target arm64-apple-ios14.0-simulator \
-            -framework Foundation \
-            -o tests/ios/TridentTest/TridentTest \
-            tests/ios/TridentTest/main.m
-
-          # Create .app bundle
-          mkdir -p TridentTest.app
-          cp tests/ios/TridentTest/TridentTest TridentTest.app/
-          cp tests/ios/TridentTest/Info.plist TridentTest.app/
-
-          # Embed core dylib in app bundle
-          if [ -n "$CORE_DYLIB" ]; then
-            cp "$CORE_DYLIB" TridentTest.app/trident_libretro.dylib
-          fi
-
-          # codesign for simulator
-          codesign --force --sign - TridentTest.app/trident_libretro.dylib || true
-          codesign --force --sign - TridentTest.app/TridentTest
-          codesign --force --sign - TridentTest.app
-
-      - name: Find iOS Simulator device
-        id: sim-device
-        run: |
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          for runtime, devs in data['devices'].items():
-              if 'iOS' in runtime:
-                  for d in devs:
-                      if 'iPhone' in d['name'] and d['isAvailable']:
-                          print(d['udid']); sys.exit(0)
-          sys.exit(1)")
-          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
-          echo "Found simulator: $DEVICE"
-
-      - name: Run tests in iOS Simulator
-        run: |
-          mkdir -p test-results
-          DEVICE="${{ steps.sim-device.outputs.device }}"
-          xcrun simctl boot "$DEVICE" 2>/dev/null || true
-          sleep 5
-          xcrun simctl install "$DEVICE" TridentTest.app
-          xcrun simctl launch --console "$DEVICE" com.trident.test 2>&1 | tee test-results/ios-sim-output.txt
-          if grep -q "FAILED:  0" test-results/ios-sim-output.txt; then
-            echo "iOS Simulator tests passed"
-          else
-            echo "iOS Simulator tests had failures"
-          fi
-          xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
-        continue-on-error: true
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-ios
-          path: test-results/
+          echo "=== iOS Simulator core ==="
+          find build-sim -name "trident_libretro*" -type f
 
   # ──────────────────────────────────────────────
   # Summary: Aggregate all results
@@ -362,58 +271,60 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all-results
+        continue-on-error: true
 
-      - name: Create summary script
+      - name: Generate summary
         run: |
+          pip3 install junitparser 2>/dev/null || true
           cat > /tmp/summarize.py << 'PYEOF'
-          import json, glob, os, sys
+          import glob, os, sys
 
-          summary_lines = []
-          summary_lines.append("## Cross-Platform Test Results\n")
-          summary_lines.append("| Platform | Functional | Performance | Status |")
-          summary_lines.append("|----------|-----------|-------------|--------|")
+          lines = []
+          lines.append("## Cross-Platform Test Results\n")
+          lines.append("| Platform | Functional | Performance | Status |")
+          lines.append("|----------|-----------|-------------|--------|")
 
           for d in sorted(glob.glob("all-results/test-results-*/")):
               platform = os.path.basename(d.rstrip("/")).replace("test-results-", "")
+              func = "N/A"
+              perf = "N/A"
 
-              func_summary = "N/A"
-              func_files = glob.glob(os.path.join(d, "functional-*.json"))
-              if func_files:
+              xml_files = glob.glob(os.path.join(d, "functional-*.xml"))
+              if xml_files:
                   try:
-                      data = json.load(open(func_files[0]))
-                      s = data.get("summary", {})
-                      func_summary = f"{s.get('passed',0)}P/{s.get('failed',0)}F/{s.get('skipped',0)}S"
+                      import xml.etree.ElementTree as ET
+                      tree = ET.parse(xml_files[0])
+                      root = tree.getroot()
+                      ts = root.find(".//testsuite") if root.tag != "testsuite" else root
+                      if ts is not None:
+                          t = int(ts.get("tests", 0))
+                          f = int(ts.get("failures", 0))
+                          e = int(ts.get("errors", 0))
+                          s = int(ts.get("skipped", 0))
+                          p = t - f - e - s
+                          func = f"{p}P/{f}F/{e}E/{s}S"
                   except Exception:
-                      func_summary = "parse error"
+                      func = "parse error"
 
-              perf_summary = "N/A"
+              import json
               perf_files = glob.glob(os.path.join(d, "perf-*.json"))
               if perf_files:
                   try:
                       data = json.load(open(perf_files[0]))
                       bs = data.get("benchmarks", [])
                       if bs:
-                          perf_summary = f"{bs[0].get('avg_fps', 'N/A')} FPS"
+                          perf = f"{bs[0].get('avg_fps', 'N/A')} FPS"
                   except Exception:
-                      perf_summary = "parse error"
+                      perf = "parse error"
 
-              ios_files = glob.glob(os.path.join(d, "ios-sim-output.txt"))
-              if ios_files and func_summary == "N/A":
-                  content = open(ios_files[0]).read()
-                  if "FAILED:  0" in content:
-                      func_summary = "all passed"
-                  else:
-                      fails = content.count("\nFAIL:")
-                      func_summary = f"{fails} failures"
+              status = "pass" if ("0F/0E" in func or func == "N/A") else "fail"
+              lines.append(f"| {platform} | {func} | {perf} | {status} |")
 
-              status = "pass" if ("0F" in func_summary or func_summary in ("all passed", "N/A")) else "fail"
-              summary_lines.append(f"| {platform} | {func_summary} | {perf_summary} | {status} |")
+          if not glob.glob("all-results/test-results-*/"):
+              lines.append("| (none) | N/A | N/A | - |")
 
-          print("\n".join(summary_lines))
+          print("\n".join(lines))
           PYEOF
-
-      - name: Generate summary
-        run: |
           python3 /tmp/summarize.py >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY

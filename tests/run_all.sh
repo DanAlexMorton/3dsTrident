@@ -2,9 +2,9 @@
 #
 # Trident -- Local Test Orchestration
 #
-# Builds the core, test harness, and test ROMs, then runs both
-# functional and performance tests. Works inside the Docker container
-# or natively on Linux/macOS.
+# Builds the core and runs functional (pytest + libretro.py) and
+# performance tests. Works inside the Docker container or natively
+# on Linux/macOS.
 #
 # Usage:
 #   ./tests/run_all.sh                  # Run all tests
@@ -61,7 +61,7 @@ mkdir -p "$RESULTS_DIR"
 # ── Step 1: Build ──
 
 if [ "$SKIP_BUILD" = false ]; then
-    echo "=== Building core + test harness ==="
+    echo "=== Building core ==="
 
     CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release"
     CMAKE_ARGS="$CMAKE_ARGS -DBUILD_LIBRETRO_CORE=ON -DUSE_LIBRETRO_AUDIO=ON"
@@ -69,11 +69,10 @@ if [ "$SKIP_BUILD" = false ]; then
     CMAKE_ARGS="$CMAKE_ARGS -DENABLE_LUAJIT=OFF -DENABLE_DISCORD_RPC=OFF"
     CMAKE_ARGS="$CMAKE_ARGS -DENABLE_QT_GUI=OFF -DENABLE_OPENGL=ON"
     CMAKE_ARGS="$CMAKE_ARGS -DENABLE_HTTP_SERVER=OFF -DENABLE_TESTS=OFF"
-    CMAKE_ARGS="$CMAKE_ARGS -DENABLE_METAL=OFF -DBUILD_TEST_HARNESS=ON"
+    CMAKE_ARGS="$CMAKE_ARGS -DENABLE_METAL=OFF"
 
     cmake -B "$BUILD_DIR" $CMAKE_ARGS "$REPO_ROOT"
     cmake --build "$BUILD_DIR" --config Release --target panda3ds_libretro -j"$JOBS"
-    cmake --build "$BUILD_DIR" --config Release --target test_harness -j"$JOBS"
     echo ""
 fi
 
@@ -94,24 +93,20 @@ if [ -z "$CORE" ]; then
 fi
 echo "Core: $CORE"
 
-HARNESS="$BUILD_DIR/test_harness"
-if [ ! -f "$HARNESS" ]; then
-    echo "ERROR: Could not find test_harness in $BUILD_DIR"
-    exit 1
-fi
-echo "Harness: $HARNESS"
+# ── Ensure Python deps ──
+
+pip3 install -q -r "$SCRIPT_DIR/functional/requirements.txt" 2>/dev/null || true
 
 EXIT_CODE=0
 
-# ── Step 2: Functional tests ──
+# ── Step 2: Functional tests (pytest + libretro.py) ──
 
 if [ "$RUN_FUNCTIONAL" = true ]; then
     echo ""
     echo "=== Functional Tests ==="
-    python3 "$SCRIPT_DIR/functional/test_runner.py" \
-        --harness "$HARNESS" \
-        --core "$CORE" \
-        --output "$RESULTS_DIR/functional.json" || EXIT_CODE=1
+    TRIDENT_CORE_PATH="$CORE" pytest "$SCRIPT_DIR/functional/" -v \
+        --tb=short \
+        --junitxml="$RESULTS_DIR/functional.xml" || EXIT_CODE=1
 fi
 
 # ── Step 3: Performance tests ──

@@ -1,0 +1,24 @@
+--- a/src/rcheevos/consoleinfo.c
++++ b/src/rcheevos/consoleinfo.c
+@@ -760,6 +760,16 @@
+ static const rc_memory_regions_t rc_memory_regions_nintendo_dsi = { _rc_memory_regions_nintendo_dsi, 2 };
+ 
++/* ===== Nintendo 3DS ===== */
++/* https://www.3dbrew.org/wiki/Memory_layout */
++static const rc_memory_region_t _rc_memory_regions_nintendo_3ds[] = {
++  { 0x00000000U, 0x07FFFFFFU, 0x20000000U, RC_MEMORY_TYPE_SYSTEM_RAM, "FCRAM" },
++  { 0x08000000U, 0x085FFFFFU, 0x18000000U, RC_MEMORY_TYPE_VIDEO_RAM, "VRAM" }
++};
++static const rc_memory_regions_t rc_memory_regions_nintendo_3ds = { _rc_memory_regions_nintendo_3ds, 2 };
++
+ /* ===== Oric ===== */
+ 
+@@ -1134,6 +1144,9 @@
+     case RC_CONSOLE_NINTENDO_DSI:
+       return &rc_memory_regions_nintendo_dsi;
+ 
++    case RC_CONSOLE_NINTENDO_3DS:
++      return &rc_memory_regions_nintendo_3ds;
++
+     case RC_CONSOLE_ORIC:
+       return &rc_memory_regions_oric;

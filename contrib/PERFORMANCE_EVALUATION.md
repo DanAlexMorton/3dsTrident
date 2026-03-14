@@ -64,7 +64,7 @@ For each title on each platform, record:
 | Chip | Document (e.g., A17 Pro) |
 | RAM | Document (e.g., 8 GB) |
 | iOS | Version |
-| Renderer | Metal |
+| Renderer | OpenGL ES 3.0 |
 | RetroArch | Version |
 
 ---
@@ -197,14 +197,14 @@ When a bottleneck is found, perform a targeted profiling session.
   - Attach to `retroarch.exe`, sample for 60 seconds during gameplay
   - Identify hot functions in `trident_libretro.dll`
 - **iOS**: Use Xcode Instruments > Time Profiler
-  - Focus on Metal command encoding and emulation loop
+  - Focus on GL driver overhead and emulation loop
 
 ### GPU Profiling
 
 - **Windows**: Use RenderDoc (if `ENABLE_RENDERDOC_API` is on) or GPU-Z
   - Capture a frame, inspect draw calls, shader complexity, overdraw
-- **iOS**: Use Xcode Instruments > Metal System Trace
-  - Check GPU encoder utilization, shader compilation time
+- **iOS**: Use Xcode Instruments > GPU Driver
+  - Check GPU utilization, shader compilation time
 
 ### Memory Profiling
 
@@ -249,14 +249,15 @@ without special entitlements. This affects:
 Document whether Panda3DS's dynarmic backend works on iOS and the performance
 impact of interpreter fallback.
 
-### Metal vs OpenGL
+### OpenGL ES vs Desktop OpenGL
 
-The iOS build uses Metal while all other platforms use OpenGL. Performance
-characteristics differ:
+The iOS build uses OpenGL ES 3.0 while desktop platforms use OpenGL 4.1 Core.
+Performance characteristics differ:
 
-- Metal has lower driver overhead (fewer draw call bottlenecks)
-- Metal shader compilation may behave differently (pipeline state caching)
-- Validate that Metal renderer produces equivalent visual output
+- GLES 3.0 lacks some features available in desktop GL (compute shaders, etc.)
+- Ubershaders are disabled on GLES (too slow on mobile hardware)
+- Apple has deprecated OpenGL ES on iOS; performance may vary across iOS versions
+- Validate that GLES renderer produces equivalent visual output to desktop GL
 
 ### Thermal Throttling (Mobile)
 

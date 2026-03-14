@@ -17,7 +17,7 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
 | macOS ARM64 | Supported | OpenGL 4.1+ | `trident_libretro.dylib` |
 | macOS x64 | Supported | OpenGL 4.1+ | `trident_libretro.dylib` |
 | Android ARM64 | Experimental | OpenGL ES 3.2 | `trident_libretro.so` |
-| iOS ARM64 | Experimental | Metal | `trident_libretro.dylib` |
+| iOS ARM64 | Experimental | OpenGL ES 3.0 | `trident_libretro.dylib` |
 
 ## Installation
 
@@ -49,8 +49,6 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
 4. Copy `trident_libretro.info` to RetroArch's `info/` directory
 5. Launch RetroArch > Load Core > Trident > Load a 3DS ROM
 6. Requires an A11 chip or newer (iPhone 8+, iPad 6th gen+)
-7. The iOS build uses the **Metal** renderer — OpenGL is not available on iOS
-
 > **Note**: iOS does not allow JIT compilation on non-jailbroken devices. This may
 > affect CPU emulation performance. Shader JIT and fastmem may also be restricted.
 
@@ -127,7 +125,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DIOS_SIMULATOR_BUILD=OFF \
   -DCMAKE_C_FLAGS="-march=armv8-a+crc+crypto" \
   -DCMAKE_CXX_FLAGS="-march=armv8-a+crc+crypto" \
-  -DBUILD_LIBRETRO_CORE=ON -DENABLE_METAL=ON -DENABLE_OPENGL=OFF
+  -DBUILD_LIBRETRO_CORE=ON -DENABLE_OPENGL=ON -DOPENGL_PROFILE=OpenGLES \
+  -DENABLE_METAL=OFF
 cmake --build build --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
 ```
 

@@ -174,7 +174,7 @@ jobs:
           -DIOS_SIMULATOR_BUILD=OFF
           -DCMAKE_C_FLAGS="-march=armv8-a+crc+crypto"
           -DCMAKE_CXX_FLAGS="-march=armv8-a+crc+crypto"
-          -DENABLE_METAL=ON
+          -DENABLE_METAL=OFF
           -DBUILD_LIBRETRO_CORE=ON
           -DUSE_LIBRETRO_AUDIO=ON
           -DENABLE_USER_BUILD=ON
@@ -182,7 +182,8 @@ jobs:
           -DENABLE_LUAJIT=OFF
           -DENABLE_DISCORD_RPC=OFF
           -DENABLE_QT_GUI=OFF
-          -DENABLE_OPENGL=OFF
+          -DENABLE_OPENGL=ON
+          -DOPENGL_PROFILE=OpenGLES
           -DENABLE_HTTP_SERVER=OFF
           -DENABLE_TESTS=OFF
 

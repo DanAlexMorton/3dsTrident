@@ -27,7 +27,7 @@ RetroAchievements support as a first-class feature.
 | macOS ARM64 (Apple Silicon) | OpenGL | Supported |
 | macOS x64 (Intel) | OpenGL | Supported |
 | Android ARM64 | OpenGL ES | Experimental |
-| iOS ARM64 | Metal | Experimental |
+| iOS ARM64 | OpenGL ES | Experimental |
 
 ### RetroAchievements Ready
 
@@ -59,7 +59,7 @@ RetroAchievements support as a first-class feature.
 
 - Desktop platforms use **OpenGL 4.1+**
 - Android uses **OpenGL ES 3.2**
-- iOS uses **Metal** (OpenGL is not available on iOS)
+- iOS uses **OpenGL ES 3.0** (same rendering path as Android)
 - Dual-screen output composited into a single framebuffer
 
 ### Audio
@@ -111,10 +111,9 @@ RetroAchievements support as a first-class feature.
 ## What's Next
 
 - Performance optimization for mobile platforms
-- macOS Metal renderer enablement (shader pipeline fix already done)
 - Upstream rcheevos contribution for 3DS console ID and hash support
 - Core documentation for libretro-docs
-- Potential upstream PR of Metal shader build fix to Panda3DS
+- Automated functional testing via libretro.py
 
 ---
 

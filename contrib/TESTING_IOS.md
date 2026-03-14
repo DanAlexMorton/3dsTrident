@@ -3,7 +3,7 @@
 Platform: **iOS 14.0+ ARM64**
 Core binary: `trident_libretro.dylib`
 Frontend: RetroArch (iOS build or sideloaded)
-Renderer: **Metal** (OpenGL not available on iOS)
+Renderer: **OpenGL ES 3.0** (via RetroArch's GL video driver)
 
 ---
 
@@ -22,7 +22,7 @@ Renderer: **Metal** (OpenGL not available on iOS)
 |---|------|-------|-----------------|------|
 | 1.1 | Core loads | Place `trident_libretro.dylib` in RetroArch cores directory. Load Core > Trident | Core loads, name shows "Trident" | |
 | 1.2 | Core info displays | Information > Core Information | All metadata correct, license GPLv3 | |
-| 1.3 | Metal renderer active | Load a game, check logs | Logs show Metal renderer initialized (not OpenGL) | |
+| 1.3 | GLES renderer active | Load a game, check logs | Logs show OpenGL ES renderer initialized | |
 | 1.4 | No JIT crash | Load and run a game | Core runs without JIT-related crashes (iOS restricts JIT) | |
 
 ## 2. Content Loading
@@ -45,18 +45,18 @@ Renderer: **Metal** (OpenGL not available on iOS)
 | The Legend of Zelda: Ocarina of Time 3D | Complex shaders and textures |
 | Shovel Knight | 2D with effects, audio testing |
 
-## 3. Metal Renderer
+## 3. OpenGL ES Renderer
 
-These tests are iOS-specific since the core uses Metal instead of OpenGL.
+These tests verify the GLES 3.0 rendering path used on iOS.
 
 | # | Test | Steps | Expected Result | Pass |
 |---|------|-------|-----------------|------|
-| 3.1 | Shader compilation | Launch a 3D game | Metal shaders compile without errors in log | |
+| 3.1 | Shader compilation | Launch a 3D game | GLES shaders compile without errors in log | |
 | 3.2 | Texture rendering | Play through multiple areas with different textures | Textures render correctly, no corruption | |
 | 3.3 | Alpha blending | Find transparent UI elements or effects | Transparency renders correctly | |
 | 3.4 | Depth buffer | Play 3D game with overlapping geometry | No Z-fighting or depth artifacts beyond normal | |
-| 3.5 | Frame output | Check both screens | Top and bottom screens render via Metal | |
-| 3.6 | Background/foreground | Switch to another app and back | Core resumes without Metal context loss or crash | |
+| 3.5 | Frame output | Check both screens | Top and bottom screens render correctly | |
+| 3.6 | Background/foreground | Switch to another app and back | Core resumes without GL context loss or crash | |
 | 3.7 | Screen rotation | Rotate device | RetroArch handles rotation, core output intact | |
 
 ## 4. Input (Touch & Controller)

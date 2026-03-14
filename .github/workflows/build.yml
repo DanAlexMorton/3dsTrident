@@ -143,46 +143,12 @@ jobs:
           name: trident_libretro-android-arm64
           path: build/trident_libretro.so
 
-  build-ios:
-    runs-on: macos-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Configure CMake
-        run: >-
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_SYSTEM_NAME=iOS
-          -DCMAKE_OSX_ARCHITECTURES=arm64
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
-          -DCMAKE_C_FLAGS="-march=armv8-a+crc+crypto"
-          -DCMAKE_CXX_FLAGS="-march=armv8-a+crc+crypto"
-          -DENABLE_METAL=ON
-          -DBUILD_LIBRETRO_CORE=ON
-          -DUSE_LIBRETRO_AUDIO=ON
-          -DENABLE_USER_BUILD=ON
-          -DENABLE_VULKAN=OFF
-          -DENABLE_LUAJIT=OFF
-          -DENABLE_DISCORD_RPC=OFF
-          -DENABLE_QT_GUI=OFF
-          -DENABLE_OPENGL=OFF
-          -DENABLE_HTTP_SERVER=OFF
-          -DENABLE_TESTS=OFF
-
-      - name: Build
-        run: cmake --build build --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: trident_libretro-ios-arm64
-          path: build/trident_libretro.dylib
+  # iOS build is disabled until Panda3DS's Metal shader pipeline supports
+  # iOS cross-compilation (metallib generation requires iOS SDK tooling).
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-linux, build-macos-arm64, build-macos-x64, build-android, build-ios]
+    needs: [build-windows, build-linux, build-macos-arm64, build-macos-x64, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -200,7 +166,6 @@ jobs:
           cp artifacts/trident_libretro-macos-arm64/trident_libretro.dylib release/trident_libretro_macos_arm64.dylib
           cp artifacts/trident_libretro-macos-x64/trident_libretro.dylib release/trident_libretro_macos_x64.dylib
           cp artifacts/trident_libretro-android-arm64/trident_libretro.so release/trident_libretro_android_arm64.so
-          cp artifacts/trident_libretro-ios-arm64/trident_libretro.dylib release/trident_libretro_ios_arm64.dylib
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

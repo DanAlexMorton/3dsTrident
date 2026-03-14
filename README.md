@@ -41,12 +41,11 @@ Pre-built binaries for all platforms are available on the [Releases](https://git
 
 ### iOS
 
-1. Install RetroArch on your iOS device via [AltStore](https://altstore.io/), [TrollStore](https://github.com/opa334/TrollStore), or a developer account
+1. Install [RetroArch from the App Store](https://apps.apple.com/app/retroarch/id6499539433)
 2. Download `trident_libretro_ios_arm64.dylib` from [Releases](https://github.com/DanAlexMorton/3dsTrident/releases)
 3. Transfer the `.dylib` to RetroArch's cores directory on your device:
-   - **Via Files app**: Navigate to RetroArch's app folder > `cores/`
-   - **Via iTunes/Finder file sharing**: Select the RetroArch app, drop the file into its documents, then move it to `cores/` from within RetroArch's file browser
-   - **Via AltStore/sideload tools**: Some tools allow placing files directly into the app sandbox
+   - **Via Files app**: Navigate to the RetroArch folder > `cores/`
+   - **Via Finder (macOS)**: Connect your device, select it in Finder, go to the Files tab, drag the file into RetroArch's documents, then move it to `cores/` from within RetroArch's file browser
 4. Copy `trident_libretro.info` to RetroArch's `info/` directory
 5. Launch RetroArch > Load Core > Trident > Load a 3DS ROM
 6. Requires an A11 chip or newer (iPhone 8+, iPad 6th gen+)

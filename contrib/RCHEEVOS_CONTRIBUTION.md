@@ -1,52 +1,40 @@
-# rcheevos Nintendo 3DS Memory Region Contribution
+# rcheevos Nintendo 3DS Memory Region Support
 
-This document describes the changes needed in the [rcheevos](https://github.com/RetroAchievements/rcheevos)
-library to add proper Nintendo 3DS memory region support, replacing the current
-compatibility-mode fallback.
+## Status
 
-## File: `src/rcheevos/consoleinfo.c`
+An open PR already exists for this: [RetroAchievements/rcheevos#446](https://github.com/RetroAchievements/rcheevos/pull/446)
+by CasualPokePlayer. Our Trident libretro core's memory descriptors are
+aligned with that PR's virtual-address-based mapping.
 
-### 1. Add memory region definition (after Nintendo DSi, before Oric)
+## Approach: Virtual Address Mapping
 
-```c
-/* ===== Nintendo 3DS ===== */
-/* https://www.3dbrew.org/wiki/Memory_layout */
-static const rc_memory_region_t _rc_memory_regions_nintendo_3ds[] = {
-  { 0x00000000U, 0x07FFFFFFU, 0x20000000U, RC_MEMORY_TYPE_SYSTEM_RAM, "FCRAM" },
-  { 0x08000000U, 0x085FFFFFU, 0x18000000U, RC_MEMORY_TYPE_VIDEO_RAM, "VRAM" }
-};
-static const rc_memory_regions_t rc_memory_regions_nintendo_3ds = { _rc_memory_regions_nintendo_3ds, 2 };
-```
+PR #446 maps the 3DS **userland virtual address space** (0x00000000 - 0x3FFFFFFF)
+rather than physical addresses. This means game pointers map 1:1 to
+RetroAchievements addresses -- critical for 3DS games which are heavily
+pointer-driven.
 
-### 2. Add switch case in `rc_console_memory_regions()` (after Nintendo DSi)
+Our Trident core walks Panda3DS's page tables at game load time and builds one
+`retro_memory_descriptor` per contiguous physically-backed virtual range.
+This provides direct pointers into FCRAM without shadow buffers.
 
-```c
-    case RC_CONSOLE_NINTENDO_3DS:
-      return &rc_memory_regions_nintendo_3ds;
-```
+## Key Virtual Memory Regions (from PR #446)
 
-## Memory Layout Rationale
-
-| RA Address Range        | Size  | Hardware Address | Type       | Description |
-|------------------------|-------|------------------|------------|-------------|
-| 0x00000000 - 0x07FFFFFF | 128MB | 0x20000000       | System RAM | FCRAM       |
-| 0x08000000 - 0x085FFFFF | 6MB   | 0x18000000       | Video RAM  | VRAM        |
-
-- **FCRAM** (Fast Capture RAM): The primary system memory where game code, data,
-  heap, and stack reside. This is the most important region for achievement
-  development. Physical address range: 0x20000000 - 0x27FFFFFF.
-
-- **VRAM** (Video RAM): GPU video memory used for textures, framebuffers, and
-  rendering data. Physical address range: 0x18000000 - 0x185FFFFF.
-
-## Core Compatibility
-
-The Panda3DS libretro core exposes these regions via `RETRO_ENVIRONMENT_SET_MEMORY_MAPS`
-with matching physical addresses, and also provides `retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM)`
-returning the FCRAM pointer for compatibility-mode fallback.
+| Virtual Address Range    | Size   | Type              | Description                        |
+|--------------------------|--------|-------------------|------------------------------------|
+| 0x00100000 - 0x03FFFFFF  | ~63MB  | System RAM        | Code Binary (.code, .data, .bss)   |
+| 0x04000000 - 0x07FFFFFF  | 64MB   | Hardware Ctrl     | IPC Buffers                        |
+| 0x08000000 - 0x0FFFFFFF  | 128MB  | System RAM        | Regular Heap and Stack             |
+| 0x10000000 - 0x13FFFFFF  | 64MB   | Hardware Ctrl     | Shared Memory                      |
+| 0x14000000 - 0x1BFFFFFF  | 128MB  | System RAM        | Linear Heap (old base)             |
+| 0x1E800000 - 0x1EBFFFFF  | 4MB    | System RAM        | New 3DS Memory                     |
+| 0x1F000000 - 0x1F5FFFFF  | 6MB    | Video RAM         | VRAM                               |
+| 0x1FF00000 - 0x1FF7FFFF  | 512KB  | Hardware Ctrl     | DSP Memory                         |
+| 0x1FF82000 - 0x1FFFFFFF  | ~504KB | System RAM        | Thread Local Storage               |
+| 0x30000000 - 0x37FFFFFF  | 128MB  | System RAM        | New Linear Heap                    |
+| 0x38000000 - 0x3FFFFFFF  | 128MB  | System RAM        | New Linear Heap (New 3DS only)     |
 
 ## References
 
-- 3DS Memory Layout: https://www.3dbrew.org/wiki/Memory_layout
-- Console ID: `RC_CONSOLE_NINTENDO_3DS = 62` (already defined in `rc_consoles.h`)
-- 3DS hashing support already exists in `rc_hash.c`
+- 3DS Virtual Memory Layout: https://www.3dbrew.org/wiki/Memory_layout#ARM11_User-land_memory_regions
+- Console ID: `RC_CONSOLE_NINTENDO_3DS = 62` (defined in `rc_consoles.h`)
+- rcheevos PR: https://github.com/RetroAchievements/rcheevos/pull/446

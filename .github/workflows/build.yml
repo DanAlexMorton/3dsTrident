@@ -1,0 +1,124 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+          -DBUILD_LIBRETRO_CORE=ON
+          -DUSE_LIBRETRO_AUDIO=ON
+          -DENABLE_USER_BUILD=ON
+          -DENABLE_VULKAN=OFF
+          -DENABLE_LUAJIT=OFF
+          -DENABLE_DISCORD_RPC=OFF
+          -DENABLE_QT_GUI=OFF
+          -DENABLE_OPENGL=ON
+          -DENABLE_HTTP_SERVER=OFF
+          -DENABLE_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --target panda3ds_libretro
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident_libretro-windows-x64
+          path: build/Release/trident_libretro.dll
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libgl-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libwayland-dev libxkbcommon-dev
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_LIBRETRO_CORE=ON
+          -DUSE_LIBRETRO_AUDIO=ON
+          -DENABLE_USER_BUILD=ON
+          -DENABLE_VULKAN=OFF
+          -DENABLE_LUAJIT=OFF
+          -DENABLE_DISCORD_RPC=OFF
+          -DENABLE_QT_GUI=OFF
+          -DENABLE_OPENGL=ON
+          -DENABLE_HTTP_SERVER=OFF
+          -DENABLE_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --target panda3ds_libretro -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident_libretro-linux-x64
+          path: build/trident_libretro.so
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+          -DBUILD_LIBRETRO_CORE=ON
+          -DUSE_LIBRETRO_AUDIO=ON
+          -DENABLE_USER_BUILD=ON
+          -DENABLE_VULKAN=OFF
+          -DENABLE_LUAJIT=OFF
+          -DENABLE_DISCORD_RPC=OFF
+          -DENABLE_QT_GUI=OFF
+          -DENABLE_OPENGL=ON
+          -DENABLE_HTTP_SERVER=OFF
+          -DENABLE_TESTS=OFF
+          -DENABLE_METAL=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --target panda3ds_libretro -j$(sysctl -n hw.logicalcpu)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trident_libretro-macos-universal
+          path: build/trident_libretro.dylib
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/trident_libretro-windows-x64/trident_libretro.dll
+            artifacts/trident_libretro-linux-x64/trident_libretro.so
+            artifacts/trident_libretro-macos-universal/trident_libretro.dylib
+          generate_release_notes: true

@@ -14,3 +14,4 @@ set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(ENABLE_USER_BUILD ON CACHE BOOL "" FORCE)
 
 add_subdirectory(vendor/Panda3DS)
+set_target_properties(panda3ds_libretro PROPERTIES OUTPUT_NAME "trident_libretro")

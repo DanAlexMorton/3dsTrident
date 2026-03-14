@@ -1,0 +1,94 @@
+# DESCRIPTION: GitLab CI/CD for libRetro (NOT FOR GitLab-proper)
+
+##############################################################################
+################################# BOILERPLATE ################################
+##############################################################################
+
+.core-defs:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    CORENAME: trident
+    BASE_CORE_ARGS: -DBUILD_LIBRETRO_CORE=ON -DUSE_LIBRETRO_AUDIO=ON -DENABLE_USER_BUILD=ON -DENABLE_VULKAN=OFF -DENABLE_LUAJIT=OFF -DENABLE_DISCORD_RPC=OFF -DENABLE_QT_GUI=OFF -DENABLE_OPENGL=ON -DENABLE_HTTP_SERVER=OFF -DENABLE_TESTS=OFF
+    CORE_ARGS: ${BASE_CORE_ARGS}
+
+include:
+  ################################## DESKTOPS ################################
+  # Linux
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-cmake.yml'
+
+  # Windows
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/windows-cmake-mingw.yml'
+
+  # MacOS x86_64
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-cmake-x86.yml'
+
+  # MacOS ARM64
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/osx-cmake-arm64.yml'
+
+  ################################## CELLULAR ################################
+  # Android
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/android-cmake.yml'
+
+  # iOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ios-cmake.yml'
+
+stages:
+  - build-prepare
+  - build-static
+  - build-shared
+
+##############################################################################
+#################################### STAGES ##################################
+##############################################################################
+
+################################### DESKTOPS #################################
+# Linux 64-bit
+libretro-build-linux-x64:
+  extends:
+    - .libretro-linux-cmake-x86_64
+    - .core-defs
+
+# Windows 64-bit
+libretro-build-windows-x64:
+  extends:
+    - .libretro-windows-cmake-x86_64
+    - .core-defs
+
+# MacOS 64-bit
+libretro-build-osx-x64:
+  tags:
+    - mac-apple-silicon
+  variables:
+    CORE_ARGS: ${BASE_CORE_ARGS} -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_METAL=OFF
+  extends:
+    - .libretro-osx-cmake-x86
+    - .core-defs
+
+# MacOS ARM 64-bit
+libretro-build-osx-arm64:
+  tags:
+    - mac-apple-silicon
+  variables:
+    CORE_ARGS: ${BASE_CORE_ARGS} -DENABLE_METAL=OFF
+  extends:
+    - .libretro-osx-cmake-arm64
+    - .core-defs
+
+################################### CELLULAR #################################
+# Android ARM64
+android-arm64-v8a:
+  extends:
+    - .libretro-android-cmake-arm64-v8a
+    - .core-defs
+
+# iOS ARM64 (may require additional work)
+# libretro-build-ios-arm64:
+#   extends:
+#     - .libretro-ios-cmake-arm64
+#     - .core-defs

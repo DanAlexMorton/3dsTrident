@@ -14,4 +14,10 @@ set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(ENABLE_USER_BUILD ON CACHE BOOL "" FORCE)
 
 add_subdirectory(vendor/Panda3DS)
-set_target_properties(panda3ds_libretro PROPERTIES OUTPUT_NAME "trident_libretro")
+set_target_properties(panda3ds_libretro PROPERTIES
+    OUTPUT_NAME "trident_libretro"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+)

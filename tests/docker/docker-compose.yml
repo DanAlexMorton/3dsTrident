@@ -1,0 +1,12 @@
+services:
+  test-linux:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace
+    command: ["./tests/run_all.sh"]
+    environment:
+      - CI=false
+      - DISPLAY=:99

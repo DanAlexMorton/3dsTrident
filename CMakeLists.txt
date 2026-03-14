@@ -21,3 +21,8 @@ set_target_properties(panda3ds_libretro PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
 )
+
+option(BUILD_TEST_HARNESS "Build the functional test harness" OFF)
+if(BUILD_TEST_HARNESS AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT ANDROID)
+    add_subdirectory(tests/functional)
+endif()

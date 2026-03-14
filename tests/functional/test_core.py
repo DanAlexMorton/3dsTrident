@@ -65,8 +65,11 @@ class TestInitDeinit:
         with session_builder.build() as session:
             pass
 
-    def test_double_session(self, core_path):
+    def test_double_session(self, core_path, session_works):
         """Two sequential sessions should not crash."""
+        if not session_works:
+            pytest.skip("Session requires OpenGL context (not available in headless CI)")
+
         from libretro import SessionBuilder
 
         for _ in range(2):

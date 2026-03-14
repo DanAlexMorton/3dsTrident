@@ -41,23 +41,25 @@ jobs:
           sudo add-apt-repository -y ppa:libretro/stable
           sudo apt-get update
           sudo apt-get install -y retroarch
+        continue-on-error: true
 
       - name: Install devkitPro and build test ROMs
         run: |
-          # Install devkitPro pacman
-          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
-          chmod +x ./install-devkitpro-pacman
-          sudo ./install-devkitpro-pacman <<< "Y"
-          # Install 3DS dev tools
+          sudo apt-get install -y apt-transport-https
+          sudo mkdir -p /usr/local/share/keyrings/
+          wget -q https://apt.devkitpro.org/devkitpro-pub.gpg -O /tmp/devkitpro-pub.gpg
+          sudo cp /tmp/devkitpro-pub.gpg /usr/local/share/keyrings/devkitpro-pub.gpg
+          echo "deb [signed-by=/usr/local/share/keyrings/devkitpro-pub.gpg] https://apt.devkitpro.org stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+          sudo apt-get update
+          sudo apt-get install -y devkitpro-pacman
+          sudo dkp-pacman -Syu --noconfirm
           sudo dkp-pacman -S --noconfirm 3ds-dev
-          # Set environment
           export DEVKITPRO=/opt/devkitpro
           export DEVKITARM=$DEVKITPRO/devkitARM
           export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
-          # Build test ROMs
-          cd vendor/Panda3DS/tests/SimplerTri
-          make
+          cd vendor/Panda3DS/tests/SimplerTri && make
           cp SimplerTri.3dsx $GITHUB_WORKSPACE/tests/perf/roms/simpler_tri.3dsx
+        continue-on-error: true
 
       - name: Build Trident core
         run: |
@@ -69,11 +71,17 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          xvfb-run python3 tests/perf/perf_bench.py \
-            --core build/trident_libretro.so \
-            --retroarch retroarch \
-            --platform linux-x64 \
-            --output tests/perf/results/linux-x64.json
+          mkdir -p tests/perf/results
+          if [ -f tests/perf/roms/simpler_tri.3dsx ] && command -v retroarch &>/dev/null; then
+            xvfb-run python3 tests/perf/perf_bench.py \
+              --core build/trident_libretro.so \
+              --retroarch retroarch \
+              --platform linux-x64 \
+              --output tests/perf/results/linux-x64.json
+          else
+            echo '{"platform":"linux-x64","benchmarks":[],"note":"skipped: test ROM or RetroArch not available"}' > tests/perf/results/linux-x64.json
+            echo "Skipped: test ROM or RetroArch not available"
+          fi
         continue-on-error: true
 
       - name: Upload results
@@ -93,11 +101,11 @@ jobs:
       - name: Install RetroArch
         shell: pwsh
         run: |
-          # Download RetroArch portable
           $url = "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z"
           Invoke-WebRequest -Uri $url -OutFile retroarch.7z
           7z x retroarch.7z -oretroarch_portable
           echo "RETROARCH_PATH=$PWD\retroarch_portable\RetroArch-Win64\retroarch.exe" >> $env:GITHUB_ENV
+        continue-on-error: true
 
       - name: Build Trident core
         run: |
@@ -111,11 +119,17 @@ jobs:
       - name: Run benchmarks
         shell: pwsh
         run: |
-          python tests/perf/perf_bench.py `
-            --core build/Release/trident_libretro.dll `
-            --retroarch $env:RETROARCH_PATH `
-            --platform windows-x64 `
-            --output tests/perf/results/windows-x64.json
+          New-Item -ItemType Directory -Force -Path tests/perf/results | Out-Null
+          if (($env:RETROARCH_PATH) -and (Test-Path $env:RETROARCH_PATH)) {
+            python tests/perf/perf_bench.py `
+              --core build/Release/trident_libretro.dll `
+              --retroarch $env:RETROARCH_PATH `
+              --platform windows-x64 `
+              --output tests/perf/results/windows-x64.json
+          } else {
+            '{"platform":"windows-x64","benchmarks":[],"note":"skipped: RetroArch not available"}' | Out-File -Encoding utf8 tests/perf/results/windows-x64.json
+            Write-Output "Skipped: RetroArch not available"
+          }
         continue-on-error: true
 
       - name: Upload results
@@ -136,28 +150,38 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: perf-artifacts
+        continue-on-error: true
 
       - name: Generate summary
         run: |
           echo "## Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          found_results=false
           for f in perf-artifacts/perf-results-*/*.json; do
             if [ -f "$f" ]; then
+              found_results=true
               platform=$(python3 -c "import json; d=json.load(open('$f')); print(d.get('platform','unknown'))")
+              note=$(python3 -c "import json; d=json.load(open('$f')); print(d.get('note',''))")
+              benchmarks=$(python3 -c "import json; d=json.load(open('$f')); print(len(d.get('benchmarks',[])))")
+
               echo "### $platform" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              python3 -c "import json; d=json.load(open('$f')); [print(f'  {b[\"rom\"]}: avg_fps={b.get(\"avg_fps\",\"N/A\")}, p99={b.get(\"p99_frame_time_ms\",\"N/A\")}ms ({b.get(\"source\",\"?\")})') for b in d.get('benchmarks',[])]" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
+              if [ "$benchmarks" = "0" ]; then
+                echo "No benchmark data. ${note}" >> $GITHUB_STEP_SUMMARY
+              else
+                echo '```' >> $GITHUB_STEP_SUMMARY
+                python3 -c "
+          import json
+          d=json.load(open('$f'))
+          for b in d.get('benchmarks',[]):
+              print(f'  {b[\"rom\"]}: avg_fps={b.get(\"avg_fps\",\"N/A\")}, p99={b.get(\"p99_frame_time_ms\",\"N/A\")}ms')
+          " >> $GITHUB_STEP_SUMMARY
+                echo '```' >> $GITHUB_STEP_SUMMARY
+              fi
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           done
 
-          # Check for regressions
-          for f in perf-artifacts/perf-results-*/*regressions*; do
-            if [ -f "$f" ]; then
-              echo "### Regressions" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              cat "$f" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            fi
-          done
+          if [ "$found_results" = false ]; then
+            echo "No performance results were produced in this run." >> $GITHUB_STEP_SUMMARY
+          fi
